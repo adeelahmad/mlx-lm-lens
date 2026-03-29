@@ -1,8 +1,10 @@
 # mlx-lm-lens
 
-Mechanistic interpretability CLI for transformer models on Apple Silicon. Analyze per-layer predictions, monitor activation drift against reference models, and discover model circuits.
+**Mechanistic interpretability CLI for transformer models on Apple Silicon.**
 
-**Author:** [Adeel Ahmad](mailto:adeelahmad99@gmail.com)
+Analyze per-layer predictions, monitor activation drift against reference models, compare fine-tuned vs base models, and discover model circuits—all without a GPU.
+
+**Author:** [Adeel Ahmad](mailto:adeelahmad99@gmail.com) | **License:** Apache 2.0
 
 ## Features
 
@@ -28,14 +30,18 @@ Modern language models are black boxes. mlx-lm-lens provides:
 **Requirements:** Python ≥3.10, Apple Silicon (M1/M2/M3)
 
 ```bash
+# Clone and install from source
 git clone https://github.com/adeelahmad/mlx-lm-lens.git
 cd mlx-lm-lens
 pip install -e .
+
+# Or install directly from GitHub
+pip install git+https://github.com/adeelahmad/mlx-lm-lens.git@main#egg=mlx-lm-lens
 ```
 
-Or from GitHub directly:
+Verify installation:
 ```bash
-pip install git+https://github.com/adeelahmad/mlx-lm-lens.git
+mlx-lm-lens --help
 ```
 
 ## Quick Start
@@ -128,89 +134,336 @@ Layer  Importance (KL)  Rank  Impact
 ...
 ```
 
-## Complete Feature Reference
+## CLI Reference
 
-### Logit Lens
+### `logit-lens generate` — Stream Generation with Per-Layer Predictions
+
+Generate tokens and log what each layer predicts at every step.
 
 ```bash
-mlx-lm-lens logit-lens \
-  --model MODEL_PATH \                    # Required: path to model directory
-  --prompt PROMPT \                       # Required: input text
-  --adapter ADAPTER_PATH \                # Optional: path to LoRA adapter
-  --top-k 5 \                             # How many top predictions to show (default: 5)
-  --all-positions \                       # Show predictions at every position (default: last only)
-  --compare-base \                        # Compare predictions with base model (requires --adapter)
-  --use-chat-template \                   # Apply chat template before tokenization
-  --use-tuned-lens \                      # Use tuned lens projection (if available)
-  --format table|json|csv \               # Output format (default: table)
-  --output FILE \                         # Write to file instead of stdout
-  --verbose                               # Enable debug logging
+mlx-lm-lens logit-lens generate [OPTIONS]
 ```
 
-### Activation Analysis
+**Required arguments:**
+```
+-m, --model TEXT                 Path to MLX model [required]
+-p, --prompt TEXT                Initial prompt [required]
+```
+
+**Generation options:**
+```
+-n, --max-tokens INTEGER         Tokens to generate (default: 100, max: 1000)
+-l, --log-from-token INTEGER     Start logging from token N (default: 0)
+-k, --top-k INTEGER              Top predictions per layer (default: 5, min: 1)
+-t, --temperature FLOAT          Sampling temperature (default: 1.0, min: 0.01)
+--top-p FLOAT                    Nucleus sampling cutoff (default: None, range: 0-1)
+--sampling-method TEXT           greedy | top_k | nucleus (default: greedy)
+-s, --seed INTEGER               Random seed for reproducibility
+--include-prompt                 Include prompt tokens in logging
+```
+
+**Template & formatting:**
+```
+--chat-template / --no-chat-template   Apply chat template (default: True)
+-f, --format TEXT                Output format: table | json | csv (default: table)
+-o, --output TEXT                Save results to JSON file
+```
+
+**TUI & display:**
+```
+--show-progress / --no-progress  Show progress bar (default: True)
+--no-tui                         Disable interactive TUI, print to console
+--wordcloud                      Show word frequency cloud after generation
+--wordcloud-out TEXT             Save wordcloud to file
+```
+
+**Drift correction options:**
+```
+--drift-correction               Enable per-layer drift correction
+--drift-threshold FLOAT          Angle threshold in degrees (default: 0.3, range: 0.001-179.9)
+--drift-baseline-tokens INT      Tokens for baseline accumulation (default: 256, min: 1)
+--drift-log TEXT                 JSONL file for per-layer angle log
+--reference-model TEXT           Reference model path for drift baseline
+--reference-adapter TEXT         Reference adapter path
+```
+
+**Stop sequences:**
+```
+--stop TEXT                      Repeatable: stop generation on this string
+```
+
+**Example:**
+```bash
+mlx-lm-lens logit-lens generate \
+  --model Qwen3-0.6B \
+  --prompt "The future of AI" \
+  --max-tokens 100 \
+  --top-k 5 \
+  --temperature 0.7 \
+  --sampling-method nucleus \
+  --top-p 0.9
+
+# With drift correction from reference model
+mlx-lm-lens logit-lens generate \
+  --model finetuned-model \
+  --reference-model base-model \
+  --prompt "Explain quantum mechanics" \
+  --max-tokens 100 \
+  --drift-correction \
+  --drift-threshold 0.3 \
+  --drift-log /tmp/drift.jsonl \
+  --no-tui
+
+# With adapter and output
+mlx-lm-lens logit-lens generate \
+  --model base-model \
+  --prompt "Hello" \
+  --max-tokens 50 \
+  --output results.json \
+  --format json
+```
+
+---
+
+### `activations` — Analyze Layer Representations
+
+Compare hidden states between models using similarity metrics.
 
 ```bash
+mlx-lm-lens activations [OPTIONS]
+```
+
+**Required arguments:**
+```
+-m, --model TEXT                 Primary model path [required]
+-p, --prompt TEXT                Input text [required]
+--metrics TEXT                   Comma-separated metrics [required]
+                                 Available: cosine,cka,procrustes,grassmannian,mad,
+                                           effective-dim,energy-kl,rsa
+```
+
+**Comparison options:**
+```
+--reference-model TEXT           Reference model path for comparison
+--adapter-path TEXT              LoRA adapter path for primary model
+--reference-adapter TEXT         Reference adapter path
+--compare-base                   Compare base vs adapted (requires adapter)
+```
+
+**Batch processing:**
+```
+--batch-prompts TEXT             JSONL file with multiple prompts (one per line)
+```
+
+**Output options:**
+```
+-f, --format TEXT                table | json | csv (default: table)
+--output-dir TEXT                Directory for output files
+--output TEXT                    Single output file
+```
+
+**Performance:**
+```
+--verbose                        Enable debug logging
+```
+
+**Example:**
+```bash
+# Single prompt, multiple metrics
 mlx-lm-lens activations \
-  --model MODEL_PATH \                    # Required: primary model
-  --reference-model REF_PATH \            # Optional: second model for comparison
-  --prompt PROMPT \                       # Required: input text
-  --metrics METRIC_LIST \                 # Required: comma-separated metric names
-  --batch-prompts FILE \                  # Optional: JSONL file with multiple prompts
-  --adapter ADAPTER_PATH \                # Optional: LoRA adapter for primary model
-  --format table|json|csv \               # Output format (default: table)
-  --output DIR \                          # Write results to directory
-  --verbose
+  --model model1 \
+  --prompt "Hello world" \
+  --metrics cosine,cka,mad
+
+# Compare base vs fine-tuned
+mlx-lm-lens activations \
+  --model finetuned-model \
+  --reference-model base-model \
+  --prompt "Your prompt here" \
+  --metrics cosine,cka,procrustes \
+  --output-dir results/
+
+# Batch analysis with adapter
+mlx-lm-lens activations \
+  --model base-model \
+  --adapter-path my-adapter.safetensors \
+  --batch-prompts prompts.jsonl \
+  --metrics effective-dim,rsa \
+  --format json \
+  --output results.json
 ```
 
 **Available metrics:**
-- `cosine` — Cosine similarity in activation space
-- `cka` — Centered Kernel Alignment (RBF kernel)
-- `procrustes` — Procrustes distance (alignment cost)
+- `cosine` — Cosine similarity (0=orthogonal, 1=identical)
+- `cka` — Centered Kernel Alignment (0=uncorrelated, 1=identical)
+- `procrustes` — Orthogonal transformation distance
 - `grassmannian` — Principal angles between subspaces
 - `mad` — Mean Absolute Deviation
-- `effective-dim` — Effective dimensionality (fraction of spectrum)
+- `effective-dim` — Effective dimensionality (1.0=full rank)
 - `energy-kl` — Energy-based KL divergence
 - `rsa` — Representational Similarity Analysis
 
-### Circuit Discovery — Ablate
+---
+
+### `circuit ablate` — Find Important Layers
+
+Ablate each layer and measure impact on predictions.
 
 ```bash
+mlx-lm-lens circuit ablate [OPTIONS]
+```
+
+**Required arguments:**
+```
+--model TEXT                     Model path [required]
+-p, --prompt TEXT                Input text [required]
+--method TEXT                    Ablation method [required]:
+                                 zero | mean | noise | knockout
+```
+
+**Ablation options:**
+```
+--target-token TEXT              Specific token to measure (default: last token)
+--layer-range TEXT               Layer range, e.g., "5-15" (default: all)
+--batch-size INTEGER             Batch size for ablation (default: 1)
+```
+
+**Output options:**
+```
+-f, --format TEXT                table | json | csv (default: table)
+--output-dir TEXT                Output directory for results
+```
+
+**Example:**
+```bash
 mlx-lm-lens circuit ablate \
-  --model MODEL_PATH \
-  --prompt PROMPT \
-  --method zero|mean|noise|knockout \     # Ablation strategy (default: zero)
-  --target-token TOKEN \                  # Optional: specific token to measure
-  --layers START-END \                    # Optional: layer range (e.g., "10-20")
-  --format table|json|csv \
-  --output DIR
+  --model my-model \
+  --prompt "The capital of France is" \
+  --method zero \
+  --format json \
+  --output-dir ablation_results/
 ```
 
 **Ablation methods:**
 - `zero` — Replace layer output with zeros
-- `mean` — Replace with mean activation across positions
-- `noise` — Replace with Gaussian noise
+- `mean` — Replace with mean activation across all positions
+- `noise` — Replace with Gaussian noise (0 mean, unit variance)
 - `knockout` — Zero out residual stream at layer input
 
-### Circuit Discovery — Other Subcommands
+---
+
+### `circuit patch` — Activation Patching
+
+Patch activations from reference model into main model.
 
 ```bash
+mlx-lm-lens circuit patch [OPTIONS]
+```
+
+**Required arguments:**
+```
+--model TEXT                     Model path [required]
+--reference TEXT                 Reference model path [required]
+-p, --prompt TEXT                Input text [required]
+```
+
+**Patching options:**
+```
+--patch-layer INTEGER            Specific layer to patch (default: sweep all)
+--start-layer INTEGER            Start layer for sweep (default: 0)
+--end-layer INTEGER              End layer for sweep
+```
+
+**Output options:**
+```
+-f, --format TEXT                table | json | csv (default: table)
+--output TEXT                    Output file
+```
+
+**Example:**
+```bash
 mlx-lm-lens circuit patch \
-  --model MODEL_PATH \
-  --reference REF_PATH \
-  --prompt PROMPT \
-  --patch-layer N \                       # Optional: patch specific layer only
-  --sweep                                 # Sweep through all layers
+  --model my-model \
+  --reference base-model \
+  --prompt "Hello world" \
+  --format json \
+  --output patch_results.json
+```
 
+---
+
+### `circuit decompose` — Residual Stream Decomposition
+
+Decompose residual stream at a specific position.
+
+```bash
+mlx-lm-lens circuit decompose [OPTIONS]
+```
+
+**Required arguments:**
+```
+--model TEXT                     Model path [required]
+-p, --prompt TEXT                Input text [required]
+```
+
+**Options:**
+```
+--position INTEGER               Token position (-1 = last, default: -1)
+--show-contributions             Show layer-wise contributions
+-f, --format TEXT                table | json | csv (default: table)
+--output TEXT                    Output file
+```
+
+**Example:**
+```bash
 mlx-lm-lens circuit decompose \
-  --model MODEL_PATH \
-  --prompt PROMPT \
-  --position N \                          # Token position (-1 = last)
-  --show-contributions
+  --model my-model \
+  --prompt "Explain AI" \
+  --position -1 \
+  --show-contributions \
+  --format json
+```
 
+---
+
+### `circuit angles` — Weight Angle Analysis
+
+Compute weight angles between adapter versions.
+
+```bash
+mlx-lm-lens circuit angles [OPTIONS]
+```
+
+**Required arguments:**
+```
+--base-adapter TEXT              Base adapter path [required]
+--current-adapter TEXT           Current adapter path [required]
+```
+
+**Options:**
+```
+--per-layer                      Show per-layer angles (default: show summary)
+-f, --format TEXT                table | json | csv (default: table)
+--output TEXT                    Output file
+```
+
+**Example:**
+```bash
 mlx-lm-lens circuit angles \
-  --base-adapter PATH \
-  --current-adapter PATH \
-  --per-layer
+  --base-adapter v1.safetensors \
+  --current-adapter v2.safetensors \
+  --per-layer \
+  --format json
+```
+
+---
+
+### Global Options
+
+Available on all commands:
+```
+--verbose                        Enable debug logging
+--help                           Show command help
 ```
 
 ## Examples

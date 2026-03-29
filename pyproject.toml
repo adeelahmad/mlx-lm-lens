@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 authors = [
-    {name = "Adeel Ahmad", email = "adeel@example.com"}
+    {name = "Adeel Ahmad", email = "adeelahmad99@gmail.com"}
 ]
 
 dependencies = [
