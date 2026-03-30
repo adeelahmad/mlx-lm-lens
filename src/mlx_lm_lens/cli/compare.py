@@ -122,6 +122,7 @@ def compare(
       except Exception as e:
         logger.warning(f"Chat template failed: {e}")
 
+    prev_len_m1 = 0
     for result in stream_with_logit_lens(
       model1_obj,
       tokenizer1,
@@ -134,7 +135,10 @@ def compare(
       sampling_method=sampling_method,
     ):
       results_m1.append(result)
-      console.print(result.token_str, end="", highlight=False)
+      # Use properly decoded text, not individual tokens
+      new_text = result.generated_text[prev_len_m1:]
+      console.print(new_text, end="", highlight=False)
+      prev_len_m1 = len(result.generated_text)
 
     console.print()
     ModelLoader.unload(model1_obj)
@@ -159,6 +163,7 @@ def compare(
       except Exception as e:
         logger.warning(f"Chat template failed: {e}")
 
+    prev_len_m2 = 0
     for result in stream_with_logit_lens(
       model2_obj,
       tokenizer2,
@@ -171,7 +176,10 @@ def compare(
       sampling_method=sampling_method,
     ):
       results_m2.append(result)
-      console.print(result.token_str, end="", highlight=False)
+      # Use properly decoded text, not individual tokens
+      new_text = result.generated_text[prev_len_m2:]
+      console.print(new_text, end="", highlight=False)
+      prev_len_m2 = len(result.generated_text)
 
     console.print()
     ModelLoader.unload(model2_obj)
