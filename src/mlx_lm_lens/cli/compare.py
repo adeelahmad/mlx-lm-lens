@@ -49,6 +49,9 @@ def compare(
     ),
     max_tokens: int = typer.Option(50, "--max-tokens", "-n", min=1, max=1000),
     top_k: int = typer.Option(5, "--top-k", "-k", min=1),
+    top_p: float | None = typer.Option(
+        None, "--top-p", min=0.0, max=1.0, help="Nucleus sampling cutoff (for nucleus method)"
+    ),
     temperature: float = typer.Option(1.0, "--temperature", "-t", min=0.01),
     sampling_method: str = typer.Option(
         "greedy", "--sampling-method", help="greedy | top_k | nucleus"
@@ -126,6 +129,7 @@ def compare(
       max_tokens=max_tokens,
       log_from_token=0,
       top_k=top_k,
+      top_p=top_p,
       temperature=temperature,
       sampling_method=sampling_method,
     ):
@@ -162,6 +166,7 @@ def compare(
       max_tokens=max_tokens,
       log_from_token=0,
       top_k=top_k,
+      top_p=top_p,
       temperature=temperature,
       sampling_method=sampling_method,
     ):
