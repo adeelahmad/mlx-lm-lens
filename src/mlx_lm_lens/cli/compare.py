@@ -97,6 +97,9 @@ def compare(
   if not final_prompt:
     raise ConfigError("Prompt is empty")
 
+  # Suppress INFO logs during generation
+  logging.getLogger("mlx_lm_lens").setLevel(logging.WARNING)
+
   console.print(f"[bold cyan]Comparing Models[/bold cyan]")
   console.print(f"[dim]Model 1:[/dim] {model1}")
   console.print(f"[dim]Model 2:[/dim] {model2}")
