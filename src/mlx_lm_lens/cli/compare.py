@@ -34,12 +34,18 @@ def compare(
         envvar="Modeln",
         help="Second model path (also reads from $Modeln env var)",
     ),
-    prompt_file: str = typer.Option(
+    prompt_file: str | None = typer.Option(
         None,
         "--prompt-file",
         "-pf",
         envvar="Prompt",
         help="Path to prompt file (also reads from $Prompt env var)",
+    ),
+    prompt: str | None = typer.Option(
+        None,
+        "--prompt",
+        "-p",
+        help="Inline prompt text (alternative to --prompt-file)",
     ),
     max_tokens: int = typer.Option(50, "--max-tokens", "-n", min=1, max=1000),
     top_k: int = typer.Option(5, "--top-k", "-k", min=1),
@@ -73,20 +79,25 @@ def compare(
     raise ConfigError("model1 required (--model1 or $Model)")
   if not model2:
     raise ConfigError("model2 required (--model2 or $Modeln)")
-  if not prompt_file:
-    raise ConfigError("prompt_file required (--prompt-file or $Prompt)")
 
-  if not Path(prompt_file).exists():
-    raise ConfigError(f"Prompt file not found: {prompt_file}")
+  # Get prompt from file or inline
+  final_prompt = None
+  if prompt:
+    final_prompt = prompt.strip()
+  elif prompt_file:
+    if not Path(prompt_file).exists():
+      raise ConfigError(f"Prompt file not found: {prompt_file}")
+    final_prompt = Path(prompt_file).read_text().strip()
+  else:
+    raise ConfigError("prompt required (--prompt, --prompt-file, or $Prompt)")
 
-  prompt = Path(prompt_file).read_text().strip()
-  if not prompt:
-    raise ConfigError(f"Prompt file is empty: {prompt_file}")
+  if not final_prompt:
+    raise ConfigError("Prompt is empty")
 
   console.print(f"[bold cyan]Comparing Models[/bold cyan]")
   console.print(f"[dim]Model 1:[/dim] {model1}")
   console.print(f"[dim]Model 2:[/dim] {model2}")
-  console.print(f"[dim]Prompt:[/dim] {prompt[:100]}...")
+  console.print(f"[dim]Prompt:[/dim] {final_prompt[:100]}...")
   console.print()
 
   results_m1: list[TokenResult] = []
@@ -97,11 +108,11 @@ def compare(
   try:
     model1_obj, tokenizer1 = ModelLoader.load(model1)
 
-    input_prompt1 = prompt
+    input_prompt1 = final_prompt
     if chat_template and hasattr(tokenizer1, "apply_chat_template"):
       try:
         input_prompt1 = tokenizer1.apply_chat_template(
-          [{"role": "user", "content": prompt}],
+          [{"role": "user", "content": final_prompt}],
           tokenize=False,
           add_generation_prompt=True,
         )
@@ -133,11 +144,11 @@ def compare(
   try:
     model2_obj, tokenizer2 = ModelLoader.load(model2)
 
-    input_prompt2 = prompt
+    input_prompt2 = final_prompt
     if chat_template and hasattr(tokenizer2, "apply_chat_template"):
       try:
         input_prompt2 = tokenizer2.apply_chat_template(
-          [{"role": "user", "content": prompt}],
+          [{"role": "user", "content": final_prompt}],
           tokenize=False,
           add_generation_prompt=True,
         )
@@ -200,7 +211,7 @@ def compare(
     comparison_data = {
       "model1": model1,
       "model2": model2,
-      "prompt": prompt,
+      "prompt": final_prompt,
       "config": {
         "max_tokens": max_tokens,
         "top_k": top_k,
