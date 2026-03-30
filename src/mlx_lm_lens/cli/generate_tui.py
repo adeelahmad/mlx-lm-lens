@@ -13,9 +13,17 @@ from mlx_lm_lens.core.logit_sampling import TokenResult
 class GenerateTUI:
   """Live TUI display for token generation."""
 
-  def __init__(self, model_name: str, prompt: str, max_tokens: int, sampling_method: str):
+  def __init__(
+    self,
+    model_name: str,
+    prompt: str,
+    max_tokens: int,
+    sampling_method: str,
+    templated_prompt: str | None = None,
+  ):
     self.model_name = model_name
     self.prompt = prompt
+    self.templated_prompt = templated_prompt or prompt
     self.max_tokens = max_tokens
     self.sampling_method = sampling_method
     self._results: list[TokenResult] = []
@@ -35,7 +43,8 @@ class GenerateTUI:
     self._update_header()
 
   def _update_header(self) -> None:
-    prompt_str = f"[bold cyan]{self.model_name}[/bold cyan] | {self.sampling_method}\nPrompt: {self.prompt[:50]}"
+    prompt_display = self.templated_prompt[:100] if len(self.templated_prompt) > 100 else self.templated_prompt
+    prompt_str = f"[bold cyan]{self.model_name}[/bold cyan] | {self.sampling_method}\n[dim]Templated:[/dim] {prompt_display}"
     self.layout["header"].update(Panel(prompt_str, title="Config"))
 
   def _update_stream(self) -> None:

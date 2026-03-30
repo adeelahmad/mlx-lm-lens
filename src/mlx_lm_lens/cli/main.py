@@ -7,12 +7,14 @@ import typer
 
 from mlx_lm_lens.cli.activations import activations_app
 from mlx_lm_lens.cli.circuit import circuit_app
+from mlx_lm_lens.cli.compare import compare
 from mlx_lm_lens.cli.logit_lens import logit_lens_app
 
 app = typer.Typer(help="Mechanistic interpretability CLI for MLX language models")
 app.add_typer(logit_lens_app, name="logit-lens")
 app.add_typer(activations_app, name="activations")
 app.add_typer(circuit_app, name="circuit")
+app.command(name="compare")(compare)
 
 
 def setup_logging(verbose: bool, quiet: bool) -> None:

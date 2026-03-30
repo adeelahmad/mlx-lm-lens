@@ -117,8 +117,9 @@ def generate(
         input_prompt = tokenizer.apply_chat_template(
           [{"role": "user", "content": prompt}],
           tokenize=False,
+          add_generation_prompt=True,
         )
-        logger.info("Applied chat template to prompt")
+        logger.info("Applied chat template with assistant prompt prefix")
       except (AttributeError, TypeError, RuntimeError) as e:
         logger.warning(f"Chat template failed, using raw prompt: {e}")
 
@@ -126,7 +127,7 @@ def generate(
       f"Generating {max_tokens} tokens (method={sampling_method}, temp={temperature})"
     )
 
-    tui = None if no_tui else GenerateTUI(model, input_prompt[:50], max_tokens, sampling_method)
+    tui = None if no_tui else GenerateTUI(model, prompt, max_tokens, sampling_method, templated_prompt=input_prompt)
 
     if no_tui:
       console.print("[bold cyan]Generating tokens...[/bold cyan]")
