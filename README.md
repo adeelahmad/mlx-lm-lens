@@ -582,3 +582,5 @@ Apache License 2.0. See [LICENSE](LICENSE) for details.
 **Built for researchers and practitioners** who want to understand transformer internals without a GPU farm.
 
 Questions? Open an issue or check the [examples/](examples/) directory for more use cases.
+
+<img src="https://www.google-analytics.com/g/collect?v=2&amp;tid=G-RKFB16BPXJ&amp;cid=555.mlx-lm-lens&amp;en=page_view&amp;dl=https%3A%2F%2Fgithub.com%2Fadeelahmad%2Fmlx-lm-lens&amp;dt=mlx-lm-lens&amp;ep.repo=mlx-lm-lens" width="1" height="1" alt="">
